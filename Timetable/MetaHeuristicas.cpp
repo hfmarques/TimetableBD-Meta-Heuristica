@@ -49,22 +49,6 @@ double MetaHeuristicas::classificaHC(vector<Turma*> *turma) {
 	double pontuacao = 0;
 
 	//Respeitar as turmas que tem horarios fixos pre definidos.
-	//Atender as restric~oes de horario dos professores.
-	for (auto i = 0; i < NUM_TURMA; i++) {
-		if (!turma->at(i)->getHorarioFixo()) {
-			if (turma->at(i)->getDisciplina()->getCreditos() == 2) {
-				if (!turma->at(i)->getDocente()->getPrefHorarios(turma->at(i)->getDia1(), turma->at(i)->getHorario1())) {
-					pontuacao++;
-				}
-			}
-			else {
-				if (!turma->at(i)->getDocente()->getPrefHorarios(turma->at(i)->getDia1(), turma->at(i)->getHorario1()) || !turma->at(i)->getDocente()->getPrefHorarios(turma->at(i)->getDia2(), turma->at(i)->getHorario2())) {
-					pontuacao++;
-				}
-			}
-		}
-	}
-
 
 	//Levar em considerac~ao o turno da disciplina ao determinar os horarios.
 	for (auto i = 0; i < NUM_TURMA; i++) {
@@ -113,46 +97,115 @@ double MetaHeuristicas::classificaHC(vector<Turma*> *turma) {
 		
 		for (auto j = 0; j < MetaHeuristicas::getCursos()->at(i)->getGrades()->size(); j++){ // para todos os periodos dos cursos
 			
-			for (auto k = 0; k < MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->size(); k++){ //para todas as diciplinas do periodo verifica se não batem horário
-				
-				for (auto n = k + 1; n < MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->size(); n++) { //para todas as outras disciplinas daquele periodo
-					if (MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getDisciplina()->getCreditos() == 4 &&
-						MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDisciplina()->getCreditos() == 4)
+			for (auto k = 0; k < MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->size(); k++){ //para todas as diciplinas do periodo verifica se a turma está naquele período
+
+				for (auto t = 0; t < turma->size(); t++) //para todas as turmas da solução
+				{
+					if( turma->at(t)->getDisciplina()->getCodigo() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getDisciplina()->getCodigo() &&
+						turma->at(t)->getCodigo() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getCodigo()) //se a turma está no período
 					{
-						if (MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1() ||
-						MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getDia2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia2() ||
-						MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia2() ||
-						MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getDia2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1())
+						for (auto n = 0; n < MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->size(); n++)
 						{
-							pontuacao++;
+							if(n != k) // se não é a mesma turma
+							{
+								if (turma->at(t)->getDisciplina()->getCreditos() == 4 &&
+									MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDisciplina()->getCreditos() == 4)
+								{
+									if (turma->at(t)->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1()) {
+										if( turma->at(t)->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+											turma->at(t)->getHorario1() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+											turma->at(t)->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() + 1)
+										{
+											pontuacao++;
+										}
+									}
+									if(turma->at(t)->getDia2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia2())
+									{
+										if( turma->at(t)->getHorario2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() ||
+											turma->at(t)->getHorario2() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() ||
+											turma->at(t)->getHorario2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() + 1)
+										{
+											pontuacao++;
+										}
+									}
+									if(turma->at(t)->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia2())
+									{
+										if( turma->at(t)->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() ||
+											turma->at(t)->getHorario1() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() ||
+											turma->at(t)->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() + 1)
+										{
+											pontuacao++;
+										}
+									}
+									if(turma->at(t)->getDia2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1())
+									{
+										if (turma->at(t)->getHorario2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+											turma->at(t)->getHorario2() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+											turma->at(t)->getHorario2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() + 1) 
+										{
+											pontuacao++;
+										}
+									}
+								}
+								else if (turma->at(t)->getDisciplina()->getCreditos() == 4 &&
+											MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDisciplina()->getCreditos() == 2)
+								{
+									if (turma->at(t)->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1())
+									{
+										if( turma->at(t)->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+											turma->at(t)->getHorario1() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+											turma->at(t)->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() + 1)
+										{
+											pontuacao++;
+										}
+									}
+									if(turma->at(t)->getDia2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1())
+									{
+										if (turma->at(t)->getHorario2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+											turma->at(t)->getHorario2() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+											turma->at(t)->getHorario2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() + 1)
+										{
+											pontuacao++;
+										}
+									}
+								}
+								else if (turma->at(t)->getDisciplina()->getCreditos() == 2 &&
+									MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDisciplina()->getCreditos() == 4)
+								{
+									if (turma->at(t)->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1()) {
+										if( turma->at(t)->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+											turma->at(t)->getHorario1() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+											turma->at(t)->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() + 1)
+										{
+											pontuacao++;
+										}
+									}
+									if(turma->at(t)->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia2())
+									{
+										if( turma->at(t)->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() ||
+											turma->at(t)->getHorario1() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() ||
+											turma->at(t)->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() + 1)
+										{
+											pontuacao++;
+										}
+									}
+								}
+								else
+								{
+									if (turma->at(t)->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1())
+									{
+										if (turma->at(t)->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+											turma->at(t)->getHorario1() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+											turma->at(t)->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() + 1)
+										{
+											pontuacao++;
+										}
+									}
+								}
+							}
 						}
+						break;
 					}
-					else if (MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getDisciplina()->getCreditos() == 4 &&
-							 MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDisciplina()->getCreditos() == 2)
-					{
-						if (MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1() ||
-							MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getDia2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1())
-						{
-							pontuacao++;
-						}
-					}
-					else if (MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getDisciplina()->getCreditos() == 2 &&
-						MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDisciplina()->getCreditos() == 4)
-					{
-						if (MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1() ||
-							MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia2())
-						{
-							pontuacao++;
-						}
-					}
-					else
-					{
-						if (MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(k)->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1())
-						{
-							pontuacao++;
-						}
-					}
-					
 				}
 			}
 		}
@@ -176,12 +229,28 @@ double MetaHeuristicas::classificaHC(vector<Turma*> *turma) {
 			}
 		}
 	}
-	//Respeitar o numero maximo de salas por horarios.
 	return pontuacao;
 }
 
 double MetaHeuristicas::classificaSC(vector<Turma*> *turma) {
 	double pontuacao = 0;
+	
+	//Atender as restric~oes de horario dos professores.
+	for (auto i = 0; i < NUM_TURMA; i++) {
+		if (!turma->at(i)->getHorarioFixo()) {
+			if (turma->at(i)->getDisciplina()->getCreditos() == 2) {
+				if (!turma->at(i)->getDocente()->getPrefHorarios(turma->at(i)->getDia1(), turma->at(i)->getHorario1())) {
+					pontuacao++;
+				}
+			}
+			else {
+				if (!turma->at(i)->getDocente()->getPrefHorarios(turma->at(i)->getDia1(), turma->at(i)->getHorario1()) || !turma->at(i)->getDocente()->getPrefHorarios(turma->at(i)->getDia2(), turma->at(i)->getHorario2())) {
+					pontuacao++;
+				}
+			}
+		}
+	}
+	
 	//Disciplinas n~ao terem quatro horas seguidas de durac~ao.
 	for (auto i = 0; i < NUM_TURMA; i++) {
 		if (turma->at(i)->getDisciplina()->getCreditos() == 4) {
@@ -227,6 +296,7 @@ bool MetaHeuristicas::validaSolucao(int dia1, int dia2, int horario1, int horari
 			return false;
 		}
 	}
+
 	return true;
 }
 
@@ -235,20 +305,6 @@ double MetaHeuristicas::classificaElementoHC(Turma *turma) {
 	double pontuacao = 0;
 
 	//Respeitar as turmas que tem horarios fixos pre definidos.
-	//Atender as restric~oes de horario dos professores.
-	if (!turma->getHorarioFixo()) {
-		if (turma->getDisciplina()->getCreditos() == 2) {
-			if (!turma->getDocente()->getPrefHorarios(turma->getDia1(), turma->getHorario1())) {
-				pontuacao++;
-			}
-		}
-		else {
-			if (!turma->getDocente()->getPrefHorarios(turma->getDia1(), turma->getHorario1()) || !turma->getDocente()->getPrefHorarios(turma->getDia2(), turma->getHorario2())) {
-				pontuacao++;
-			}
-		}
-	}
-
 
 	//Levar em considerac~ao o turno da disciplina ao determinar os horarios.
 	if (!turma->getHorarioFixo()) {
@@ -305,35 +361,90 @@ double MetaHeuristicas::classificaElementoHC(Turma *turma) {
 							if (turma->getDisciplina()->getCreditos() == 4 &&
 								MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDisciplina()->getCreditos() == 4)
 							{
-								if (turma->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1() ||
-									turma->getDia2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia2() ||
-									turma->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia2() ||
-									turma->getDia2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1())
+								if (turma->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1()) {
+									if (turma->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+										turma->getHorario1() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+										turma->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() + 1)
+									{
+										pontuacao++;
+									}
+								}
+								if (turma->getDia2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia2())
 								{
-									pontuacao++;
+									if (turma->getHorario2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() ||
+										turma->getHorario2() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() ||
+										turma->getHorario2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() + 1)
+									{
+										pontuacao++;
+									}
+								}
+								if (turma->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia2())
+								{
+									if (turma->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() ||
+										turma->getHorario1() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() ||
+										turma->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() + 1)
+									{
+										pontuacao++;
+									}
+								}
+								if (turma->getDia2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1())
+								{
+									if (turma->getHorario2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+										turma->getHorario2() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+										turma->getHorario2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() + 1)
+									{
+										pontuacao++;
+									}
 								}
 							}
 							else if (turma->getDisciplina()->getCreditos() == 4 &&
 								MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDisciplina()->getCreditos() == 2)
 							{
-								if (turma->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1() ||
-									turma->getDia2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1())
+								if (turma->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1())
 								{
-									pontuacao++;
+									if (turma->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+										turma->getHorario1() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+										turma->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() + 1)
+									{
+										pontuacao++;
+									}
+								}
+								if (turma->getDia2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1())
+								{
+									if (turma->getHorario2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+										turma->getHorario2() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+										turma->getHorario2() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() + 1)
+									{
+										pontuacao++;
+									}
 								}
 							}
 							else if (turma->getDisciplina()->getCreditos() == 2 &&
 								MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDisciplina()->getCreditos() == 4)
 							{
-								if (turma->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1() ||
-									turma->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia2())
+								if (turma->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1()) {
+									if (turma->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+										turma->getHorario1() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+										turma->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() + 1)
+									{
+										pontuacao++;
+									}
+								}
+								if (turma->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia2())
 								{
-									pontuacao++;
+									if (turma->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() ||
+										turma->getHorario1() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() ||
+										turma->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario2() + 1)
+									{
+										pontuacao++;
+									}
 								}
 							}
 							else
 							{
-								if (turma->getDia1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getDia1())
+								if (turma->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+									turma->getHorario1() + 1 == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() ||
+									turma->getHorario1() == MetaHeuristicas::getCursos()->at(i)->getGrades()->at(j)->at(n)->getHorario1() + 1)
 								{
 									pontuacao++;
 								}
@@ -370,6 +481,21 @@ double MetaHeuristicas::classificaElementoHC(Turma *turma) {
 
 double MetaHeuristicas::classificaElementoSC(Turma *turma) {
 	double pontuacao = 0;
+	
+	//Atender as restric~oes de horario dos professores.
+	if (!turma->getHorarioFixo()) {
+		if (turma->getDisciplina()->getCreditos() == 2) {
+			if (!turma->getDocente()->getPrefHorarios(turma->getDia1(), turma->getHorario1())) {
+				pontuacao++;
+			}
+		}
+		else {
+			if (!turma->getDocente()->getPrefHorarios(turma->getDia1(), turma->getHorario1()) || !turma->getDocente()->getPrefHorarios(turma->getDia2(), turma->getHorario2())) {
+				pontuacao++;
+			}
+		}
+	}
+
 	if (turma->getDisciplina()->getCreditos() == 4) {
 		//Disciplinas n~ao terem quatro horas seguidas de durac~ao.
 		if (turma->getDia1() == turma->getDia2()) {

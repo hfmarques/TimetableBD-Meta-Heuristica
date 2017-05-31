@@ -27,7 +27,7 @@ public:
         return feromoniosHorarios1.at(i).at(j);
     }
 
-    static void setFeromoniosHorario1(double feromonios, int i, int j) {
+    inline static void setFeromoniosHorario1(double feromonios, int i, int j) {
         feromoniosHorarios1.at(i).at(j) = feromonios;
     }
 
@@ -35,7 +35,7 @@ public:
 		return feromoniosHorarios2.at(i).at(j);
 	}
 
-	static void setFeromoniosHorario2(double feromonios, int i, int j) {
+	inline static void setFeromoniosHorario2(double feromonios, int i, int j) {
 		feromoniosHorarios2.at(i).at(j) = feromonios;
 	}
 

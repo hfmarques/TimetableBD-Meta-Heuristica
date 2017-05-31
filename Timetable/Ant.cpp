@@ -24,13 +24,21 @@ Ant::~Ant() {
 void Ant::inicializa(int numeroTurmas){
     feromoniosHorarios1.clear();
 
-    for(auto i=0; i < numeroTurmas; i++)
-        feromoniosHorarios1.push_back(vector < double > (NUMERO_HORAS_TOTAL));
+	for (auto i = 0; i < numeroTurmas; i++) {
+		feromoniosHorarios1.push_back(vector < double >(NUMERO_HORAS_TOTAL));
+		for (auto j = 0; j < NUMERO_HORAS_TOTAL; j++) {
+			feromoniosHorarios1.at(i).at(j) = E;
+		}
+	}
 
 	feromoniosHorarios2.clear();
 
-	for (auto i = 0; i < numeroTurmas; i++)
+	for (auto i = 0; i < numeroTurmas; i++){
 		feromoniosHorarios2.push_back(vector<double>(NUMERO_HORAS_TOTAL));
+		for (auto j = 0; j < NUMERO_HORAS_TOTAL; j++) {
+			feromoniosHorarios2.at(i).at(j) = E;
+		}
+	}
 }
 
 void Ant::resetaFeromonios(int numeroTurmas) {

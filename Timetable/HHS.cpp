@@ -12,7 +12,7 @@
 #include <cstring>
 #include <cmath>
 
-#define MAXIMO_ITERACOES 1000000
+#define MAXIMO_ITERACOES 10000
 #define CONTROLA_OTIMO_LOCAL 500 // número minimo de vezes que uma solução ótima (otimo local) deve aparecer antes de haver evaporação de feromônios
 #define CONTROLA_MAXIMO_OTIMO_LOCAL 1500 // número minimo de vezes que uma solução ótima (otimo local) deve aparecer antes de haver evaporação de feromônios
 #define HMCR 0.7 //Porcentagem randomica de consideração da memória
@@ -146,6 +146,8 @@ void HHS::executa() {
 
 		iatual++;
 	}
+	cout << "  bestDFT:" << populacaoSolucoes->at(0)->getHardConstraints()
+	<< "  bestSCP:" << populacaoSolucoes->at(0)->getSoftConstraints() << endl;
 }
 
 int HHS::selecionaDias(int* dias, Solucoes* s, int dia) {

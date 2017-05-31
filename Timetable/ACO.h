@@ -25,9 +25,10 @@ public:
 private:
     int convert(char *str);
 
-    int getProxItemPermutado(double w[][2], int j, int tamanhoVetor, int pos);
-    void swap(double w[][2], int i, int j);
-	int roleta(double omega[][2], int tamanhoVetor);
+	int getProxItemPermutado(vector<vector<double> > &omega, int j, int tamanhoVetor, int pos);
+	void swap(vector<vector<double> > &omega, int i, int j);
+	int roleta(vector<vector<double> > &omega, int tamanhoVetor);
+	int torneio(vector<vector<double> > &omega, int tamanhoVetor);
 
     inline void setPosH1(int p){ posH1 = p;}
     inline int getPosH1() const{ return posH1;}

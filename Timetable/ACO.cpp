@@ -17,9 +17,9 @@
 #include <cstring>
 #include <cmath>
 
-#define METODO 1 // 1 para roleta 2 para NPI
-#define NUMERO_FORMIGAS 100
-#define MAXIMO_ITERACOES 5000
+#define METODO 1 // 1 para roleta, 2 para NPI, 3 para torneio
+#define NUMERO_FORMIGAS 50
+#define MAXIMO_ITERACOES 20000
 #define NUMERO_HORAS_TOTAL 70
 #define NUMERO_HORAS_DIA 14
 #define NUMERO_DIAS 5
@@ -28,8 +28,10 @@
 //#define Y 0.1 // fator de penalidade
 //#define P 0.1 // fator de evaporação dos feromonios
 //#define W 0.8 // variavel omega que define o quanto será a normalização dos feromonios
+#define C 5 // chance de escolher a menor solução no metodo do torneio
+#define D 5 // quantidade de elementos do torneio
 #define CONTROLA_OTIMO_LOCAL 100 // número minimo de vezes que uma solução ótima (otimo local) deve aparecer antes de haver evaporação de feromônios
-#define CONTROLA_MAXIMO_OTIMO_LOCAL 1000 // número minimo de vezes que uma solução ótima (otimo local) deve aparecer antes de haver evaporação de feromônios
+#define CONTROLA_MAXIMO_OTIMO_LOCAL 500 // número minimo de vezes que uma solução ótima (otimo local) deve aparecer antes de haver evaporação de feromônios
 
 ///TODO: restrição de horas iguais
 ///TODO: alterar o proximoItemPermutado
@@ -58,8 +60,13 @@ bool sortSolution(Solucoes* i, Solucoes* j) {
 		return i->getHardConstraints() < j->getHardConstraints();
 }
 
+bool sortFeromonios(vector<double> i, vector<double> j) {
+	return i.at(0) > j.at(0);
+}
+
 void ACO::executa() {
-	double wh[NUMERO_HORAS_TOTAL][2], wh2[NUMERO_HORAS_TOTAL][2];  // vetor omega de horas, onde 0 é o nivel de feromonios e 1 é a posição em que ela estava inicialmente
+	auto& tauH = vector<vector<double>>(); 
+	auto& tauH2 = vector<vector<double>>();  // vetor omega de horas, onde 0 é o nivel de feromonios e 1 é a posição em que ela estava inicialmente
 	auto turmaAtual = 0, iatual = 0; // controle de quantas turmas ja foram alocadas e o indice de interações atualmente
 	auto numTentativasH1 = 0, numTentativasH2 = 0;// vezes em que se tentou criar uma solução
 	auto maxDiag = 0; // controle para a matriz imaginaria passar sempre na diagonal
@@ -68,37 +75,46 @@ void ACO::executa() {
 
 	Ant::inicializa(MetaHeuristicas::NUM_TURMA); // incializa os feromonios
 
+	for (auto i = 0; i < NUMERO_HORAS_TOTAL; i++)
+	{
+		tauH.push_back(vector<double>(2));
+		tauH2.push_back(vector<double>(2));
+	}
+
 	for (auto i = 0;i < NUMERO_FORMIGAS;i++)
 		formigas.at(i) = new Ant();
 
 	timer.start();
 	while (iatual<MAXIMO_ITERACOES) { // inicia o loop principal
 		for (auto g = 0;g<NUMERO_FORMIGAS;g++) { // constroi e gera as soluções
+			for (auto i = 0; i < NUMERO_HORAS_TOTAL; i++) { // irá buscar todas os horarios possiveis do professor que irá ministrar esta disciplina
+				tauH.at(i).at(0) = Ant::getFeromoniosHorario1(turmaAtual, i);
+				tauH.at(i).at(1) = i;
+			}
+			if (getTurmas()->at(turmaAtual)->getDisciplina()->getCreditos() == 4) {
+				for (auto i = 0; i < NUMERO_HORAS_TOTAL; i++) { // irá buscar todas os horarios possiveis do professor em que o nextPermItem retornou e tentar achar um horario para ele
+					tauH2.at(i).at(0) = Ant::getFeromoniosHorario2(turmaAtual, i);
+					tauH2.at(i).at(1) = i;
+				}
+			}
 			while (turmaAtual < MetaHeuristicas::NUM_TURMA) { //enquanto há turmas sem horarios ele encontra um horario para ela
 				//cout << "turma: " << turmaAtual << endl;
 				if (getTurmas()->at(turmaAtual)->getHorarioFixo() == false) {
-					for (auto i = 0;i < NUMERO_HORAS_TOTAL;i++) { // irá buscar todas os horarios possiveis do professor que irá ministrar esta disciplina
-						wh[i][0] = formigas.at(g)->getFeromoniosHorario1(turmaAtual, i);
-						wh[i][1] = i;
-					}
-					
-					if(METODO == 1)
-						posH1 = roleta(wh, NUMERO_HORAS_TOTAL); // usa a roleta para retornar um horario adequado
-					if(METODO == 2)
-						posH1 = getProxItemPermutado(wh, numTentativasH1, NUMERO_HORAS_TOTAL, posH1); // usa o nextPermItem para retornar um horario adequado
+					if (METODO == 1)
+						posH1 = roleta(tauH, NUMERO_HORAS_TOTAL); // usa a roleta para retornar um horario adequado
+					else if (METODO == 2)
+						posH1 = getProxItemPermutado(tauH, numTentativasH1, NUMERO_HORAS_TOTAL, posH1); // usa o nextPermItem para retornar um horario adequado
+					else if (METODO == 3)
+						posH1 = torneio(tauH, NUMERO_HORAS_TOTAL);// usa o torneio para retornar um horario adequado
 					if (getTurmas()->at(turmaAtual)->getDisciplina()->getCreditos() == 4) {
-						for (auto i = 0;i < NUMERO_HORAS_TOTAL;i++) { // irá buscar todas os horarios possiveis do professor em que o nextPermItem retornou e tentar achar um horario para ele
-							wh2[i][0] = Ant::getFeromoniosHorario1(turmaAtual, i);
-							wh2[i][1] = i;
-						}
-
 						if (METODO == 1)
-							posH2 = roleta(wh2, NUMERO_HORAS_TOTAL); // usa a roleta para retornar um horario adequado
-						if (METODO == 2)
-							posH2 = getProxItemPermutado(wh2, numTentativasH2, NUMERO_HORAS_TOTAL, posH2); // usa o nextPermItem para retornar um horario adequado
-						
+							posH2 = roleta(tauH2, NUMERO_HORAS_TOTAL); // usa a roleta para retornar um horario adequado
+						else if (METODO == 2)
+							posH2 = getProxItemPermutado(tauH2, numTentativasH2, NUMERO_HORAS_TOTAL, posH2); // usa o nextPermItem para retornar um horario adequado
+						else if (METODO == 3)
+							posH1 = torneio(tauH2, NUMERO_HORAS_TOTAL);// usa o torneio para retornar um horario adequado
 					}else {
-						wh2[numTentativasH2][0] = -1;
+						tauH2.at(numTentativasH2).at(0) = -1;
 					}
 					//cout << posH1 << endl; 
 					//cout << posH2 << endl;
@@ -106,24 +122,24 @@ void ACO::executa() {
 					auto horario1 = 0;
 					auto dia2 = 0;
 					auto horario2 = 0;
-					if (METODO == 1) {
-						dia1 = static_cast<int>(floor(wh[posH1][1]) / NUMERO_HORAS_DIA);
-						horario1 = static_cast<int>(wh[posH1][1]) % NUMERO_HORAS_DIA;
+					if (METODO == 1 || METODO == 3) {
+						dia1 = static_cast<int>(floor(tauH.at(posH1).at(1)) / NUMERO_HORAS_DIA);
+						horario1 = static_cast<int>(tauH.at(posH1).at(1)) % NUMERO_HORAS_DIA;
 						dia2 = -1;
 						horario2 = -1;
-						if (wh[posH2][1] != -1) {
-							dia2 = static_cast<int>(floor(wh[posH2][1]) / NUMERO_HORAS_DIA);
-							horario2 = static_cast<int>(wh[posH2][1]) % NUMERO_HORAS_DIA;
+						if (tauH2.at(posH2).at(1) != -1) {
+							dia2 = static_cast<int>(floor(tauH2.at(posH2).at(1)) / NUMERO_HORAS_DIA);
+							horario2 = static_cast<int>(tauH2.at(posH2).at(1)) % NUMERO_HORAS_DIA;
 						}
 					}
 					if (METODO == 2) {
-						dia1 = static_cast<int>(floor(wh[numTentativasH1][1]) / NUMERO_HORAS_DIA);
-						horario1 = static_cast<int>(wh[numTentativasH1][1]) % NUMERO_HORAS_DIA;
+						dia1 = static_cast<int>(floor(tauH.at(posH1).at(1)) / NUMERO_HORAS_DIA);
+						horario1 = static_cast<int>(tauH.at(posH1).at(1)) % NUMERO_HORAS_DIA;
 						dia2 = -1;
 						horario2 = -1;
-						if (wh[numTentativasH2][1] != -1) {
-							dia2 = static_cast<int>(floor(wh[numTentativasH2][1]) / NUMERO_HORAS_DIA);
-							horario2 = static_cast<int>(wh[numTentativasH2][1]) % NUMERO_HORAS_DIA;
+						if (tauH2.at(numTentativasH2).at(1) != -1) {
+							dia2 = static_cast<int>(floor(tauH2.at(posH2).at(1)) / NUMERO_HORAS_DIA);
+							horario2 = static_cast<int>(tauH2.at(posH2).at(1)) % NUMERO_HORAS_DIA;
 						}
 					}
 					
@@ -144,7 +160,21 @@ void ACO::executa() {
 						maxDiag = 0;
 						posH1 = 0;
 						posH2 = 0;	
-						//cout << "ENTROU AQUI" << endl;
+						//cout << "ENTROU AQUI " << turmaAtual << endl;
+
+						if(turmaAtual < MetaHeuristicas::NUM_TURMA) // atualiza o vetor tau, ordena o vetor omega para o nextPermItem realizar suas operações
+						{
+							for (auto i = 0; i < NUMERO_HORAS_TOTAL; i++) { // irá buscar todas os horarios possiveis do professor que irá ministrar esta disciplina
+								tauH.at(i).at(0) = Ant::getFeromoniosHorario1(turmaAtual, i);
+								tauH.at(i).at(1) = i;
+							}
+							if (getTurmas()->at(turmaAtual)->getDisciplina()->getCreditos() == 4) {
+								for (auto i = 0; i < NUMERO_HORAS_TOTAL; i++) { // irá buscar todas os horarios possiveis do professor em que o nextPermItem retornou e tentar achar um horario para ele
+									tauH2.at(i).at(0) = Ant::getFeromoniosHorario2(turmaAtual, i);
+									tauH2.at(i).at(1) = i;
+								}
+							}
+						}
 
 					}
 
@@ -180,6 +210,7 @@ void ACO::executa() {
 																			getTurmas()->at(turmaAtual)->getHorario2()));
 
 					turmaAtual++;
+					
 				}
 
 			}
@@ -232,7 +263,7 @@ void ACO::executa() {
 					nAt = (1 - pow((1 - Y), classificaElementoSC(solucoes->at(i)->getTurmas()->at(j))))*f*g;
 					Ant::setFeromoniosHorario1(Ant::getFeromoniosHorario1(j, h1) + At - nAt, j, h1);
 					if(h2 != -1)
-						Ant::setFeromoniosHorario1(Ant::getFeromoniosHorario1(j, h2) + At - nAt, j, h2);
+						Ant::setFeromoniosHorario2(Ant::getFeromoniosHorario2(j, h2) + At - nAt, j, h2);
 				}
 			}
 		}
@@ -245,6 +276,12 @@ void ACO::executa() {
 					Ant::setFeromoniosHorario1(t, i, j);
 				else
 					Ant::setFeromoniosHorario1(0, i, j);
+
+				t = floor((1 - P)*Ant::getFeromoniosHorario2(i, j));
+				if (t>0)
+					Ant::setFeromoniosHorario2(t, i, j);
+				else
+					Ant::setFeromoniosHorario2(0, i, j);
 			}
 		}
 
@@ -280,7 +317,7 @@ void ACO::executa() {
 				auto s = new Solucoes();
 				s->setHardConstraints(solucoes->at(i)->getHardConstraints());
 				s->setSoftConstraints(solucoes->at(i)->getSoftConstraints());
-				for (int k = 0; k < MetaHeuristicas::NUM_TURMA; k++) {
+				for (auto k = 0; k < MetaHeuristicas::NUM_TURMA; k++) {
 					s->getTurmas()->push_back(new Turma(solucoes->at(i)->getTurmas()->at(k)->getId(),
 														solucoes->at(i)->getTurmas()->at(k)->getCodigo(),
 														solucoes->at(i)->getTurmas()->at(k)->getTurno(),
@@ -299,30 +336,39 @@ void ACO::executa() {
 
 		// controla quando a formiga converge
 		if (bestDFTAtual > solucoes->at(0)->getHardConstraints()) {
-			bestDFTAtual = solucoes->at(0)->getHardConstraints();
-		}
+				bestDFTAtual = solucoes->at(0)->getHardConstraints();
+			}
 
 		if (bestDFTAtual == solucoes->at(0)->getHardConstraints()) { // compara se a melhor solução se repete
 			freeze++;
 			if (freeze == CONTROLA_OTIMO_LOCAL) { // se ela se repete n vezes ele tenta normaliza-las
-				double maxFeromoniosH = 0; // armazena o maior feromonio dos horarios
-				double mediaFeromoniosH = 0; // armazena a media de feromonios das horas
+				double maxFeromoniosH1 = 0; // armazena o maior feromonio dos horarios
+				double mediaFeromoniosH1 = 0; // armazena a media de feromonios das horas
+				double maxFeromoniosH2 = 0; // armazena o maior feromonio dos horarios
+				double mediaFeromoniosH2 = 0; // armazena a media de feromonios das horas
 
 				for (auto i = 0;i<MetaHeuristicas::NUM_TURMA;i++) { // calcula o somatorio dos feromonios e o maior feromonios
 					for (auto j = 0; j<NUMERO_HORAS_TOTAL;j++) {
-						mediaFeromoniosH = Ant::getFeromoniosHorario1(i, j) + mediaFeromoniosH;
-						if (maxFeromoniosH < Ant::getFeromoniosHorario1(i, j)) {
-							maxFeromoniosH = Ant::getFeromoniosHorario1(i, j);
+						mediaFeromoniosH1 = Ant::getFeromoniosHorario1(i, j) + mediaFeromoniosH1;
+						if (maxFeromoniosH1 < Ant::getFeromoniosHorario1(i, j)) {
+							maxFeromoniosH1 = Ant::getFeromoniosHorario1(i, j);
+						}
+
+						mediaFeromoniosH2 = Ant::getFeromoniosHorario2(i, j) + mediaFeromoniosH2;
+						if (maxFeromoniosH2 < Ant::getFeromoniosHorario2(i, j)) {
+							maxFeromoniosH2 = Ant::getFeromoniosHorario2(i, j);
 						}
 					}
 
 				}
 				// faz a media dos feromonios
-				mediaFeromoniosH = mediaFeromoniosH / (MetaHeuristicas::NUM_TURMA*NUMERO_HORAS_TOTAL);
+				mediaFeromoniosH1 = mediaFeromoniosH1 / (MetaHeuristicas::NUM_TURMA*NUMERO_HORAS_TOTAL);
+				mediaFeromoniosH2 = mediaFeromoniosH2 / (MetaHeuristicas::NUM_TURMA*NUMERO_HORAS_TOTAL);
 
 				for (auto i = 0;i<MetaHeuristicas::NUM_TURMA;i++) { // utiliza a formula para normalizar todos os feromonios
 					for (auto j = 0; j<NUMERO_HORAS_TOTAL;j++) {
-						Ant::setFeromoniosHorario1(((Ant::getFeromoniosHorario1(i, j) - mediaFeromoniosH)*((mediaFeromoniosH*W) / maxFeromoniosH) + mediaFeromoniosH), i, j);
+						Ant::setFeromoniosHorario1(((Ant::getFeromoniosHorario1(i, j) - mediaFeromoniosH1)*((mediaFeromoniosH1*W) / maxFeromoniosH1) + mediaFeromoniosH1), i, j);
+						Ant::setFeromoniosHorario2(((Ant::getFeromoniosHorario2(i, j) - mediaFeromoniosH2)*((mediaFeromoniosH2*W) / maxFeromoniosH2) + mediaFeromoniosH2), i, j);
 					}
 
 				}
@@ -343,24 +389,33 @@ void ACO::executa() {
 		if (bestDFTGlobal == populacaoSolucoes->at(0)->getHardConstraints()) { // compara se a melhor solução se repete
 			freeze2++;
 			if (freeze2 == CONTROLA_MAXIMO_OTIMO_LOCAL) { // se ela se repete n vezes ele tenta normaliza-las
-				double maxFeromoniosH = 0; // armazena o maior feromonio dos horarios
-				double mediaFeromoniosH = 0; // armazena a media de feromonios das horas
+				double maxFeromoniosH1 = 0; // armazena o maior feromonio dos horarios
+				double mediaFeromoniosH1 = 0; // armazena a media de feromonios das horas
+				double maxFeromoniosH2 = 0; // armazena o maior feromonio dos horarios
+				double mediaFeromoniosH2 = 0; // armazena a media de feromonios das horas
 
 				for (auto i = 0;i<MetaHeuristicas::NUM_TURMA;i++) { // calcula o somatorio dos feromonios e o maior feromonios
 					for (auto j = 0; j<NUMERO_HORAS_TOTAL;j++) {
-						mediaFeromoniosH = Ant::getFeromoniosHorario1(i, j) + mediaFeromoniosH;
-						if (maxFeromoniosH < Ant::getFeromoniosHorario1(i, j)) {
-							maxFeromoniosH = Ant::getFeromoniosHorario1(i, j);
+						mediaFeromoniosH1 = Ant::getFeromoniosHorario1(i, j) + mediaFeromoniosH1;
+						if (maxFeromoniosH1 < Ant::getFeromoniosHorario1(i, j)) {
+							maxFeromoniosH1 = Ant::getFeromoniosHorario1(i, j);
+						}
+
+						mediaFeromoniosH2 = Ant::getFeromoniosHorario2(i, j) + mediaFeromoniosH2;
+						if (maxFeromoniosH2 < Ant::getFeromoniosHorario2(i, j)) {
+							maxFeromoniosH2 = Ant::getFeromoniosHorario2(i, j);
 						}
 					}
 
 				}
 				// faz a media dos feromonios
-				mediaFeromoniosH = mediaFeromoniosH / (MetaHeuristicas::NUM_TURMA*NUMERO_HORAS_TOTAL);
+				mediaFeromoniosH1 = mediaFeromoniosH1 / (MetaHeuristicas::NUM_TURMA*NUMERO_HORAS_TOTAL);
+				mediaFeromoniosH2 = mediaFeromoniosH2 / (MetaHeuristicas::NUM_TURMA*NUMERO_HORAS_TOTAL);
 
 				for (auto i = 0;i<MetaHeuristicas::NUM_TURMA;i++) { // utiliza a formula para normalizar todos os feromonios
 					for (auto j = 0; j<NUMERO_HORAS_TOTAL;j++) {
-						Ant::setFeromoniosHorario1(((Ant::getFeromoniosHorario1(i, j) - mediaFeromoniosH)*((mediaFeromoniosH*W) / maxFeromoniosH) + mediaFeromoniosH), i, j);
+						Ant::setFeromoniosHorario1(((Ant::getFeromoniosHorario1(i, j) - mediaFeromoniosH1)*((mediaFeromoniosH1*W) / maxFeromoniosH1) + mediaFeromoniosH1), i, j);
+						Ant::setFeromoniosHorario2(((Ant::getFeromoniosHorario2(i, j) - mediaFeromoniosH2)*((mediaFeromoniosH2*W) / maxFeromoniosH2) + mediaFeromoniosH2), i, j);
 					}
 
 				}
@@ -373,7 +428,7 @@ void ACO::executa() {
 		else { // caso contrario ele reseta o freeze pois as solução nao se repetiu
 			freeze2 = 0;
 		}
-
+		
 		cout << "DFT:" << solucoes->at(0)->getHardConstraints()
 			 << "  SCP:" << solucoes->at(0)->getSoftConstraints()
 			 << "  bestDFT:" << populacaoSolucoes->at(0)->getHardConstraints()
@@ -390,57 +445,61 @@ void ACO::executa() {
 		iatual++;
 
 	}
+
+	cout << "  bestDFT:" << populacaoSolucoes->at(0)->getHardConstraints()
+		<< "  bestSCP:" << populacaoSolucoes->at(0)->getSoftConstraints() << endl;
+
 	timer.stop();
 }
 
-int ACO::getProxItemPermutado(double omega[][2], int j, int tamanhoVetor, int pos) {
-    double o=0, rnd=0, m;
-    int q;
+int ACO::getProxItemPermutado(vector<vector<double> > &omega, int j, int tamanhoVetor, int pos) {
+	double o = 0, rnd = 0, m;
+	int q;
 
-    for(auto k=j; k<tamanhoVetor; k++) {
-        o=o+omega[k][0];
-    }
+	for (auto k = pos; k < tamanhoVetor; k++) {
+		o += omega.at(k).at(0);
+	}
 
-    if(j>=pos) {
-        for(auto k=pos; k<=j; k++) {
-            if(o>E) {
-                rnd=o*(static_cast<double>(rand()) / RAND_MAX)+0.1;
-                q=pos;
-                m=0;
-                while(m<rnd && q<tamanhoVetor) {
-                    m=m+omega[q][0];
-                    q++;
-                }
+	if (j > pos) {
+		for (auto k = pos; k <= j; k++) {
+			if (o>E) {
+				rnd = o*(static_cast<double>(rand()) / RAND_MAX) + 0.1;
+				q = pos;
+				m = 0;
+				while (m<rnd && q<tamanhoVetor) {
+					m = m + omega.at(q).at(0);
+					q++;
+				}
 
-                o=o-omega[q-1][0];
-                swap(omega, q-1,k);
-            } else {
-                swap(omega, rand()%(pos - k + 1) + k, k); // gera numeros randomicos entre pos e k
-            }
+				o = o - omega.at(q - 1).at(0);
+				swap(omega, q - 1, k);
+			}
+			else {
+				swap(omega, rand() % (pos - k + 1) + k, k); // gera numeros randomicos entre pos e k
+			}
 
-            pos++;
-        }
-    }
+			pos++;
+		}
+	}
 	return pos;
 }
 
-
-int ACO::roleta(double omega[][2], int tamanhoVetor) {
+int ACO::roleta(vector<vector<double> > &omega, int tamanhoVetor) {
 	auto roleta = vector<int>();
 	auto totalFeromonios = 0.0;
 	auto qtdCasasRoleta = 0.0;
 	for (auto i = 0; i < tamanhoVetor; i++) {
-		totalFeromonios += omega[i][0];
+		totalFeromonios += omega.at(i).at(0);
 	}
 	
 	for (auto i = 0; i < tamanhoVetor; i++) {
-		if (omega[i][0] <= 1) {
-			roleta.push_back(static_cast<int>(omega[i][1]));
+		if (omega.at(i).at(0) <= 1) {
+			roleta.push_back(static_cast<int>(omega.at(i).at(1)));
 		}
 		else {
-			qtdCasasRoleta = ceil((omega[i][0] * 100) / totalFeromonios);
+			qtdCasasRoleta = ceil((omega.at(i).at(0) * 100) / totalFeromonios);
 			for (auto j = 0; j < qtdCasasRoleta; j++)
-				roleta.push_back(static_cast<int>(omega[i][1]));
+				roleta.push_back(static_cast<int>(omega.at(i).at(1)));
 		}
 	}
 	if(roleta.size() == 0){
@@ -448,17 +507,44 @@ int ACO::roleta(double omega[][2], int tamanhoVetor) {
 	}
 	int rnd = rand() % roleta.size();
 	
-	//cout << roleta[rnd] << " " << rnd << " " << roleta.size() << " " << tamanhoVetor << endl;
+	//cout << roleta[rnd] << " " << rnd << " " << roleta.size() << " " << tamanhoVetor << " " << totalFeromonios << endl;
 
 	return roleta[rnd];
 }
 
 
-void ACO::swap(double w[][2], int i, int j) {
-	auto k = w[i][0];
-    w[i][0] = w[j][0];
-    w[j][0] = k;
-    k = w[i][1];
-    w[i][1] = w[j][1];
-    w[j][1] = k;
+int ACO::torneio(vector<vector<double> > &omega, int tamanhoVetor) {
+	int selecionado[D];
+
+	for (auto i = 0; i < D; i++)
+	{
+		selecionado[i] = rand() % tamanhoVetor;
+	}
+
+	auto ganhador = selecionado[0];
+
+	double chanceC = rand() % 100;
+	if (chanceC > C) {
+		for (auto i = 1; i < D; i++) {
+			if (omega.at(selecionado[i]).at(0) > omega.at(ganhador).at(0))
+				ganhador = selecionado[i];
+		}
+	}
+	else {
+		for (auto i = 1; i < D; i++) {
+			if (omega.at(selecionado[i]).at(0) < omega.at(ganhador).at(0))
+				ganhador = selecionado[i];
+		}
+	}
+
+	return omega.at(ganhador).at(1);
+}
+
+void ACO::swap(vector<vector<double> > &omega, int i, int j) {
+	auto k = omega.at(i).at(0);
+	omega.at(i).at(0) = omega.at(j).at(0);
+	omega.at(j).at(0) = k;
+	k = omega.at(i).at(1);
+	omega.at(i).at(1) = omega.at(j).at(1);
+	omega.at(j).at(1) = k;
 }
